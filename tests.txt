@@ -1,0 +1,15 @@
+Various Networks for Testing: https://snap.stanford.edu/data/index.html
+
+lastfm_asia (lastfm_asia_edges.csv)
+n = 7_624, m = 27_806
+
+email-EU (email_EU_edges.csv)
+n = 1_005, m = 25_571, no. of K3 = 105_461
+
+web-Stanford (web_Stanford_edges.csv)
+n = 281_903, m = 2_312_497, no. of K3 = 11_329_473
+
+LiveJournal (liveJournal_edges.csv)
+n = 4_847_571, m = 68_993_773, no. of K3 = 177_820_130
+
+
