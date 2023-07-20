@@ -12,10 +12,10 @@ struct SCT {
     : label(std::move(label)), children(move(children)), links(move(links)) {}
 };
 
-SCT SCTBuilder(std::vector<node> vertices);
+SCT SCTBuilder(std::vector<node> vertices, bool debug);
 
 void getRootToLeaf(std::shared_ptr<SCT> root, std::tuple<int, bool> edgeLink, std::vector<int> &curr, std::vector<std::vector<int>> &total, bool start);
 
-int pivoter(std::vector<node> vertices, int k);
+int pivoter(std::vector<node> vertices, int k, bool debug);
 
 #endif

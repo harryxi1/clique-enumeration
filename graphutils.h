@@ -14,11 +14,17 @@ int colour;
 
 std::vector<int> neighbours; // N(v) in undirected graph
 
-std::vector<int> inneighbours; // N^-(v) in DAG formed by degeneracy order
-std::vector<int> outneighbours; // N^+(v) in DAG formed by degeneracy order
+std::vector<int> outNeighbours; // N^+(v) in DAG formed by degeneracy order
 
-std::vector<int> colour_inneighbours; // N^-(v) in DAG formed by total colour order
-std::vector<int> colour_outneighbours; // N^+(v) in DAG formed by total colour order
+std::vector<int> colourOutneighbours; // N^+(v) in DAG formed by total colour order
 };
+
+std::vector<int> getDegeneracyOrder(std::vector<node> vertices);
+
+std::vector<node> induceSubgraph(std::vector<node> Sv);
+
+float getEdgeDensity(std::vector<node> Sv);
+
+bool checkClique(std::vector<node> C);
 
 #endif

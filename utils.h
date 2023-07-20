@@ -10,6 +10,7 @@
 #include <stack>
 #include <tuple>
 #include <unordered_map>
+#include <numeric>
 
 void printVector(const std::vector<int> vec);
 

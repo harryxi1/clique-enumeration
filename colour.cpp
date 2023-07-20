@@ -52,51 +52,11 @@ vector<vector<int>> getData(vector<node> &vertices){
     return adjacencyMatrix;
 }
 
-vector<int> getDegeneracyOrder(vector<node> vertices) {
-    vector<int> L = vector<int>();
-    vector<int> dv = vector<int>();
-    vector<vector<int>> D;
-    int k = 0;
-
-    int max_deg = 0;
-    for (int v = 0; v < n; v++) {
-        int curr_deg = vertices[v].deg;
-        dv.push_back(curr_deg);
-        if (curr_deg > max_deg) {max_deg = curr_deg;}
-    }
-    for (int i = 0; i < max_deg+1; i++) {
-        D.push_back({});
-    }
-    for (int v = 0; v < n; v++) {
-        D[vertices[v].deg].push_back(v);
-    }
-    for (int t = 0; t < n; t++) {
-        int i = 0;
-        while (D[i].empty()) {i++;}
-        k = max(k, i);
-        //L.insert(L.begin(), D[i][0]);
-        L.push_back(D[i][0]);
-        D[i].erase(D[i].begin());
-        for (int j = 0; j < vertices[L[0]].neighbours.size(); j++) {
-            int curr_neigh = vertices[L[0]].neighbours[j];
-            int neigh_dv = dv[curr_neigh];
-            if (find(L.begin(), L.end(), curr_neigh) == L.end()) {
-                D[neigh_dv].erase(remove(D[neigh_dv].begin(), D[neigh_dv].end(), curr_neigh), D[neigh_dv].end());
-                dv[curr_neigh]--;
-                D[dv[curr_neigh]].push_back(curr_neigh);
-                sort(D[dv[curr_neigh]].begin(), D[dv[curr_neigh]].end());
-            }
-        }
-    }
-    return L;
-}
-
-int greedyColouring(vector<node> &vertices, vector<int> deg_ordering) {
-    vector<int> ordering (deg_ordering.rbegin(), deg_ordering.rend());
-    vector<int> available(n, 1);
+int greedyColouring(vector<node> &vertices, vector<int> degOrdering) {
+    vector<int> ordering (degOrdering.rbegin(), degOrdering.rend());
+    vector<int> available(vertices.size(), 1);
     vertices[ordering[0]].colour = 0;
     int r = 1;
-
     for (int v = 1; v < n; v++) {
         for (int i = 0; i < vertices[ordering[v]].neighbours.size(); i++) {
             node curr_neigh = vertices[vertices[ordering[v]].neighbours[i]];
@@ -127,19 +87,16 @@ void setDAGNeighbourhoods(vector<node> &vertices, vector<int> ordering) {
     for (int v = 0; v < n; v++) {
         for (int i = 0; i < vertices[v].neighbours.size(); i++) {
             if (ordering_index_map[v] < ordering_index_map[vertices[v].neighbours[i]]) {
-                vertices[v].outneighbours.push_back(vertices[v].neighbours[i]);
-            }
-            else {
-                vertices[v].inneighbours.push_back(vertices[v].neighbours[i]);
+                vertices[v].outNeighbours.push_back(vertices[v].neighbours[i]);
             }
         }
+        // sort to save on intersection/difference costs
         sort(vertices[v].neighbours.begin(), vertices[v].neighbours.end());
-        sort(vertices[v].inneighbours.begin(), vertices[v].inneighbours.end());
-        sort(vertices[v].outneighbours.begin(), vertices[v].outneighbours.end());
+        sort(vertices[v].outNeighbours.begin(), vertices[v].outNeighbours.end());
 
+        // remove potential duplicates
         vertices[v].neighbours.erase(unique(vertices[v].neighbours.begin(), vertices[v].neighbours.end() ), vertices[v].neighbours.end());
-        vertices[v].inneighbours.erase(unique(vertices[v].inneighbours.begin(), vertices[v].inneighbours.end() ), vertices[v].inneighbours.end());
-        vertices[v].outneighbours.erase(unique(vertices[v].outneighbours.begin(), vertices[v].outneighbours.end() ), vertices[v].outneighbours.end());
+        vertices[v].outNeighbours.erase(unique(vertices[v].outNeighbours.begin(), vertices[v].outNeighbours.end() ), vertices[v].outNeighbours.end());
     }
 }
 
@@ -152,14 +109,10 @@ void setColourDAGNeighbourhoods(vector<node> &vertices, vector<int> colourOrderi
     for (int v = 0; v < n; v++) {
         for (int i = 0; i < vertices[v].neighbours.size(); i++) {
             if (ordering_index_map[v] < ordering_index_map[vertices[v].neighbours[i]]) {
-                vertices[v].colour_outneighbours.push_back(vertices[v].neighbours[i]);
-            }
-            else {
-                vertices[v].colour_inneighbours.push_back(vertices[v].neighbours[i]);
+                vertices[v].colourOutneighbours.push_back(vertices[v].neighbours[i]);
             }
         }
-        sort(vertices[v].colour_inneighbours.begin(), vertices[v].colour_inneighbours.end());
-        sort(vertices[v].colour_outneighbours.begin(), vertices[v].colour_outneighbours.end());
+        sort(vertices[v].colourOutneighbours.begin(), vertices[v].colourOutneighbours.end());
     }
 }
 
@@ -186,21 +139,11 @@ void setColourDAGNeighbourhoods(vector<node> &vertices, vector<int> colourOrderi
 // }
 
 bool partitioner(int k, node v, vector<node> outNeighbours) {
-    vector<int> neighboursLabel;
-    float neighbourhoodSize = static_cast<float>(outNeighbours.size());
+    float neighbourhoodSize = outNeighbours.size();
     if (neighbourhoodSize == 0) {return 0;}
     float degsum = 0;
-    for (int i = 0; i < neighbourhoodSize; i++) {
-        neighboursLabel.push_back(outNeighbours[i].label);
-    }
-    for (auto v : outNeighbours) {
-        vector<int> vNeighbours = v.neighbours;
-        for (auto u : vNeighbours) {
-            if (find(neighboursLabel.begin(), neighboursLabel.end(), u) != neighboursLabel.end()) {
-                degsum++;
-            }
-        }   
-    }
+    vector<node> inducedSubgraph = induceSubgraph(outNeighbours);
+    for (node v : inducedSubgraph) {degsum = degsum + v.neighbours.size();}
     return degsum/neighbourhoodSize > k;
 }
 
@@ -209,7 +152,7 @@ vector<vector<int>> partitionVertices(int k, vector<node> vertices) {
     vector<vector<int>> result = {{}, {}};
     for (int v = 0; v < n; v++) {
         vector <node> outNeighbours;
-        vector <int> outNeighboursIndex = vertices[v].outneighbours;
+        vector <int> outNeighboursIndex = vertices[v].outNeighbours;
         for (int u = 0; u < outNeighboursIndex.size(); u++) {
             outNeighbours.push_back(vertices[outNeighboursIndex[u]]);
         }
@@ -244,8 +187,8 @@ vector<vector<int>> DPPathCount(vector<node> vertices, int k) {
     for (int i = 0; i < vertices.size(); i++) {H[i][0] = 1;}
     for (int j = 1; j < k; j++) {
         for (int i = 0; i < vertices.size(); i++) {
-            for (int neigh = 0; neigh < vertices[i].colour_outneighbours.size(); neigh++) {
-                node currNeighbour = vertices[vertices[i].colour_outneighbours[neigh]];
+            for (int neigh = 0; neigh < vertices[i].colourOutneighbours.size(); neigh++) {
+                node currNeighbour = vertices[vertices[i].colourOutneighbours[neigh]];
                 H[i][j] = H[i][j] + H[currNeighbour.label][j-1];
             }
         }
@@ -266,49 +209,20 @@ vector<int> DPPathSampling(vector<node> vertices, int k) {
         vector<double> p = distr.probabilities();
         for (int u = 0; u < Q.size(); u++) {p[u] = H[Q[u]][k - i - 1]/cnt;}
         int u = distr(gen);
-        R.push_back(u); Q = vertices[u].colour_outneighbours;
+        R.push_back(u); Q = vertices[u].colourOutneighbours;
     }
     return R;
-}
-vector<node> induceSubgraph(vector<node> Sv) {
-    // given set of vertices
-    vector<int> SvLabel;
-    for (node v : Sv) {
-        SvLabel.push_back(v.label);
-    }
-
-    vector<node> inducedSubgraph;
-    inducedSubgraph.reserve(Sv.size());
-    for (node v : Sv) {
-        node vertexCopy = v;
-        vertexCopy.neighbours = sortedIntersection(SvLabel, vertexCopy.neighbours);
-        inducedSubgraph.push_back(vertexCopy); // replace w/ function below
-    }
-    return inducedSubgraph;
-}
-
-float getEdgeDensity(vector<node> Sv) {
-    vector<node> inducedSubgraph = induceSubgraph(Sv);
-    int degsum = 0;
-    for (node v : inducedSubgraph) {degsum = degsum + v.neighbours.size();}
-    return (degsum/2)/(choose(Sv.size(), 2));
-}
-
-bool checkClique(vector<node> C) {
-    return getEdgeDensity(C) == 1;
 }
 
 float estimateClique(vector<node> vertices, vector<int> S, int k, int t, int r) {
     unordered_map<int, vector<vector<int>>> F = {};
     for (auto v : S) {
-        // we need to create an induced subgraph
+        // build induced subgraph w/o function
         vector<node> inducedSubgraph;
-        inducedSubgraph.reserve(vertices[v].outneighbours.size());
-
-        // at some point ill store these
-        for (auto u : vertices[v].outneighbours) {
+        inducedSubgraph.reserve(vertices[v].outNeighbours.size());
+        for (auto u : vertices[v].outNeighbours) {
             node vertexCopy = vertices[u];
-            vertexCopy.colour_outneighbours = intersection(vertices[v].outneighbours , vertexCopy.colour_outneighbours);
+            vertexCopy.colourOutneighbours = intersection(vertices[v].outNeighbours , vertexCopy.colourOutneighbours);
             inducedSubgraph.push_back(vertexCopy);
         }
         F[v] = DPPathCount(inducedSubgraph, k-1);
@@ -322,14 +236,15 @@ float estimateClique(vector<node> vertices, vector<int> S, int k, int t, int r) 
     int successTimes = 0;
     for (int i = 0; i < t; i++) {
         int v = distr(gen);
+        // build induced subgraph w/o function
         vector<node> inducedSubgraph;
-        inducedSubgraph.reserve(vertices[v].outneighbours.size());
-
-        for (auto u : vertices[v].outneighbours) {
+        inducedSubgraph.reserve(vertices[v].outNeighbours.size());
+        for (auto u : vertices[v].outNeighbours) {
             node vertexCopy = vertices[u];
-            vertexCopy.colour_outneighbours = intersection(vertices[v].outneighbours , vertexCopy.colour_outneighbours);
-            inducedSubgraph.push_back(vertexCopy); // replace w/ function below
+            vertexCopy.colourOutneighbours = intersection(vertices[v].outNeighbours , vertexCopy.colourOutneighbours);
+            inducedSubgraph.push_back(vertexCopy);
         }
+
         vector<int> R = DPPathSampling(inducedSubgraph, k-1); R.push_back(v);
         vector<node> C;
         for (int i : R) {
@@ -349,8 +264,34 @@ int checkSuffix(vector<node> vertices, vector<int> ordering) {
     return suffix.size();
 }
 
+int cliqueCounter(vector<vector<int>> partition, vector<node> vertices, int k, int t, int r) {
+    int nCliques = 0;
+    for (auto v : partition[0]) {
+        vector<node> vertexSubset;
+        if (vertices[v].outNeighbours.size() >= k-1) {
+            for (auto u : vertices[v].outNeighbours) {
+                vertexSubset.push_back(vertices[u]);
+            }
+            nCliques = nCliques + pivoter(induceSubgraph(vertexSubset), k-1, true);
+        }
+    }
+
+    // for (auto v : partition[1]) {
+    //     vector<node> vertexSubset;
+    //     if (vertices[v].outNeighbours.size() >= k-1) {
+    //         for (auto u : vertices[v].outNeighbours) {
+    //             vertexSubset.push_back(vertices[u]);
+    //         }
+    //         nCliques = nCliques + pivoter(induceSubgraph(vertexSubset), k-1, true);
+    //     }
+    // }
+    nCliques = nCliques + estimateClique(vertices, partition[1], k, 100000, r);
+
+    return nCliques;
+}
+
 int main() {
-    int k = 5;
+    int k = 3;
     cout << "Initialised k = " << k << endl;
 
     vector<node> vertices = vector<node>();
@@ -401,5 +342,6 @@ int main() {
     cout << "DP Complete (" << chrono::duration_cast<std::chrono::milliseconds>(t16-t15).count() << "ms)" <<endl;
     DPPathSampling(vertices, k);
 
-    cout << pivoter(vertices, k) << endl;
+    cout << pivoter(vertices, k, false) << "\n";
+    cout << cliqueCounter(partition, vertices, k, 10, r) << "\n";
 }
