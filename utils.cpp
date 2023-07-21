@@ -18,6 +18,12 @@ void printMatrix(const vector<vector<int>> matrix) {
     }
 }
 
+void printMap(std::unordered_map<int, int> const &m){
+    for (auto const &pair: m) {
+        std::cout << "{" << pair.first << ": " << pair.second << "}\n";
+    }
+}
+
 int choose(int r, int k) {
     if (k == 0) {return 1;}
     return (r * choose(r - 1, k - 1)) / k;

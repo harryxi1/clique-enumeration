@@ -25,6 +25,6 @@ std::vector<node> induceSubgraph(std::vector<node> Sv);
 
 float getEdgeDensity(std::vector<node> Sv);
 
-bool checkClique(std::vector<node> C);
+int checkClique(std::vector<node> C);
 
 #endif

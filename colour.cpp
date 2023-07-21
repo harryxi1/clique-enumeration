@@ -182,77 +182,113 @@ vector<int> getColourOrder(vector<node> vertices) {
     return colourOrder;
 }
 
-vector<vector<int>> DPPathCount(vector<node> vertices, int k) {
+vector<vector<int>> DPPathCount(vector<node> vertices, unordered_map<int, int> labelIndexMap, int k) {
     vector<vector<int>> H(vertices.size(), vector<int>(k, 0));
     for (int i = 0; i < vertices.size(); i++) {H[i][0] = 1;}
+
     for (int j = 1; j < k; j++) {
         for (int i = 0; i < vertices.size(); i++) {
-            for (int neigh = 0; neigh < vertices[i].colourOutneighbours.size(); neigh++) {
-                node currNeighbour = vertices[vertices[i].colourOutneighbours[neigh]];
-                H[i][j] = H[i][j] + H[currNeighbour.label][j-1];
+            for (int x = 0; x < vertices[i].colourOutneighbours.size(); x++) {
+                int currNeighbourIndex = labelIndexMap[vertices[i].colourOutneighbours[x]];
+                node currNeighbour = vertices[currNeighbourIndex];
+                H[i][j] = H[i][j] + H[labelIndexMap[currNeighbour.label]][j-1];
             }
         }
     }
     return H;
 }
 
-vector<int> DPPathSampling(vector<node> vertices, int k) {
-    vector<vector<int>> H = DPPathCount(vertices, k);
+vector<int> DPPathSampler(vector<node> vertices, unordered_map<int, int> labelIndexMap, int k) {
+    vector<vector<int>> H = DPPathCount(vertices, labelIndexMap, k);
     vector<int> R = {};
     vector<int> Q = {};
     for (int i = 0; i < vertices.size(); i++) {Q.push_back(vertices[i].label);}
-    for (int i = 0; i < k-1; i++) {
+    for (int i = 0; i < k; i++) {
         int cnt = 0;
-        for (int u = 0; u < Q.size(); u++) {cnt = cnt + H[Q[u]][k - i - 1];}
-        cout << cnt << endl;
+        for (int u = 0; u < Q.size(); u++) {cnt = cnt + H[labelIndexMap[Q[u]]][k - i - 1];}
+
+        if (cnt == 0) {
+            return {};
+        }
+
         discrete_distribution<> distr(Q.begin(), Q.end());
         vector<double> p = distr.probabilities();
-        for (int u = 0; u < Q.size(); u++) {p[u] = H[Q[u]][k - i - 1]/cnt;}
+        for (int u = 0; u < Q.size(); u++) {
+            p[u] = H[labelIndexMap[Q[u]]][k - i - 1]/cnt;
+        }
         int u = distr(gen);
-        R.push_back(u); Q = vertices[u].colourOutneighbours;
+        R.push_back(Q[u]); 
+        Q = vertices[labelIndexMap[Q[u]]].colourOutneighbours;
     }
     return R;
 }
 
-float estimateClique(vector<node> vertices, vector<int> S, int k, int t, int r) {
+float estimateClique(vector<node> G, vector<int> S, int k, int t, int r) {
     unordered_map<int, vector<vector<int>>> F = {};
+    int cntKCol = 0;
     for (auto v : S) {
         // build induced subgraph w/o function
-        vector<node> inducedSubgraph;
-        inducedSubgraph.reserve(vertices[v].outNeighbours.size());
-        for (auto u : vertices[v].outNeighbours) {
-            node vertexCopy = vertices[u];
-            vertexCopy.colourOutneighbours = intersection(vertices[v].outNeighbours , vertexCopy.colourOutneighbours);
-            inducedSubgraph.push_back(vertexCopy);
+        vector<node> vertexSubset; 
+        vertexSubset.reserve(G[v].outNeighbours.size());
+        unordered_map<int, int> labelIndexMap = {};
+
+        for (int i = 0; i < G[v].outNeighbours.size(); i++) {
+            node vertexCopy = G[G[v].outNeighbours[i]];
+            labelIndexMap[vertexCopy.label] = i;
+            vertexSubset.push_back(vertexCopy);
         }
-        F[v] = DPPathCount(inducedSubgraph, k-1);
+        F[v] = DPPathCount(induceSubgraph(vertexSubset), labelIndexMap, k-1);
     }
-    int cntKCol = 0;
-    for (auto v : S) {cntKCol = cntKCol + F[v][r-1][k-2];}
-    
+
+    unordered_map<int, int> paths = {};
+    for (int v : S) {
+        int vPath = 0;
+        for (vector<int> u : F[v]) {vPath = vPath + u[k-2];}
+        paths[v] = vPath; cntKCol = cntKCol + vPath;
+    }
     discrete_distribution<> distr(S.begin(), S.end());
     vector<double> p = distr.probabilities();
-    for (int u = 0; u < S.size(); u++) {p[S[u]] = F[S[u]][r-1][k-2]/cntKCol;}
-    int successTimes = 0;
+
+    for (int u = 0; u < S.size(); u++) {
+        p[u] = paths[S[u]]/cntKCol;
+    }
+    float successTimes = 0;
+    int adj = 0;
     for (int i = 0; i < t; i++) {
-        int v = distr(gen);
-        // build induced subgraph w/o function
-        vector<node> inducedSubgraph;
-        inducedSubgraph.reserve(vertices[v].outNeighbours.size());
-        for (auto u : vertices[v].outNeighbours) {
-            node vertexCopy = vertices[u];
-            vertexCopy.colourOutneighbours = intersection(vertices[v].outNeighbours , vertexCopy.colourOutneighbours);
-            inducedSubgraph.push_back(vertexCopy);
+        int v = S[distr(gen)];
+        vector<node> vertexSubset; 
+        vertexSubset.reserve(G[v].outNeighbours.size());
+
+        unordered_map<int, int> labelIndexMap = {};
+
+        for (int j = 0; j < G[v].outNeighbours.size(); j++) {
+            node vertexCopy = G[G[v].outNeighbours[j]];
+            labelIndexMap[vertexCopy.label] = j;
+            vertexSubset.push_back(vertexCopy);
         }
 
-        vector<int> R = DPPathSampling(inducedSubgraph, k-1); R.push_back(v);
-        vector<node> C;
-        for (int i : R) {
-            C.push_back(vertices[i]);
-        }; successTimes = successTimes + checkClique(C);
+        if (!vertexSubset.empty()) {
+            vector<int> R = DPPathSampler(induceSubgraph(vertexSubset), labelIndexMap, k-1); 
+            if (R.size() == k-1) {
+                R.push_back(v);
+                sort(R.begin(), R.end());
+
+                vector<node> C;
+
+                for (int i : R) {
+                    C.push_back(G[i]);
+                };
+                
+                successTimes = successTimes + checkClique(C);
+            }
+            else {adj++;}
+        }
+        else {
+            adj++;
+        }
     }
-    float pk = successTimes/t;
-    return pk * cntKCol;
+    cout << "cntKCol " << cntKCol << endl;
+    return (successTimes/(t-adj)) * cntKCol;
 }
 
 int checkSuffix(vector<node> vertices, vector<int> ordering) {
@@ -275,7 +311,9 @@ int cliqueCounter(vector<vector<int>> partition, vector<node> vertices, int k, i
             nCliques = nCliques + pivoter(induceSubgraph(vertexSubset), k-1, true);
         }
     }
+    nCliques = nCliques + estimateClique(vertices, partition[1], k, 10000, r);
 
+    // code for exact counting of dense partition (gives total exact count)
     // for (auto v : partition[1]) {
     //     vector<node> vertexSubset;
     //     if (vertices[v].outNeighbours.size() >= k-1) {
@@ -285,7 +323,6 @@ int cliqueCounter(vector<vector<int>> partition, vector<node> vertices, int k, i
     //         nCliques = nCliques + pivoter(induceSubgraph(vertexSubset), k-1, true);
     //     }
     // }
-    nCliques = nCliques + estimateClique(vertices, partition[1], k, 100000, r);
 
     return nCliques;
 }
@@ -303,45 +340,23 @@ int main() {
 
     auto t1 = chrono::high_resolution_clock::now();
     vector<vector<int>> adjacencyMatrix = getData(vertices);
-    auto t2 = chrono::high_resolution_clock::now();
-    cout << "Data Retrieved (" << chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms)" <<endl;
-
-    auto t3 = chrono::high_resolution_clock::now();
     vector<int> ordering = getDegeneracyOrder(vertices);
-    auto t4 = chrono::high_resolution_clock::now();
-    cout << "Vertices Ordered (" << chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count() << "ms)" <<endl;
-
-    auto t5 = chrono::high_resolution_clock::now();
     setDAGNeighbourhoods(vertices, ordering);
-    auto t6 = chrono::high_resolution_clock::now();
-    cout << "Formed DAG (" << chrono::duration_cast<std::chrono::milliseconds>(t6-t5).count() << "ms)" <<endl;
-
-    auto t7 = chrono::high_resolution_clock::now();
     vector<vector<int>> partition = partitionVertices(k, vertices);
-    auto t8 = chrono::high_resolution_clock::now();
-    cout << "V Partitioned (" << chrono::duration_cast<std::chrono::milliseconds>(t8-t7).count() << "ms)" <<endl;
-    cout << partition[0].size() << "\n";
-    auto t9 = chrono::high_resolution_clock::now();
     int r = greedyColouring(vertices, ordering);
-    auto t10 = chrono::high_resolution_clock::now();
-    cout << r << "-Coloured (" << chrono::duration_cast<std::chrono::milliseconds>(t10-t9).count() << "ms)" <<endl;
-
-    auto t11 = chrono::high_resolution_clock::now();
+    cout << r << "-Coloured \n";
     vector<int> colourOrdering = getColourOrder(vertices);
-    auto t12 = chrono::high_resolution_clock::now();
-    cout << "Colour Ordered (" << chrono::duration_cast<std::chrono::milliseconds>(t12-t11).count() << "ms)" <<endl;
-
-    auto t13 = chrono::high_resolution_clock::now();
     setColourDAGNeighbourhoods(vertices, colourOrdering);
-    auto t14 = chrono::high_resolution_clock::now();
-    cout << "Colour DAG Formed (" << chrono::duration_cast<std::chrono::milliseconds>(t14-t13).count() << "ms)" <<endl;
+    auto t2 = chrono::high_resolution_clock::now();
+    cout << "Preprocessing Done in (" << chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms)" <<endl;
 
-    auto t15 = chrono::high_resolution_clock::now();
-    vector<vector<int>> H = DPPathCount(vertices, k);
-    auto t16 = chrono::high_resolution_clock::now();
-    cout << "DP Complete (" << chrono::duration_cast<std::chrono::milliseconds>(t16-t15).count() << "ms)" <<endl;
-    DPPathSampling(vertices, k);
+    //auto t15 = chrono::high_resolution_clock::now();
+    //vector<vector<int>> H = DPPathCount(vertices, k);
+    //auto t16 = chrono::high_resolution_clock::now();
+    //cout << "DP Complete (" << chrono::duration_cast<std::chrono::milliseconds>(t16-t15).count() << "ms)" <<endl;
+    //DPPathSampling(vertices, k);
 
-    cout << pivoter(vertices, k, false) << "\n";
+    //cout << "Exact " << k << "-clique count: " << pivoter(vertices, k, false) << "\n";
+
     cout << cliqueCounter(partition, vertices, k, 10, r) << "\n";
 }

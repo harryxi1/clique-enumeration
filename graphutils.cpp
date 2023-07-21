@@ -48,14 +48,12 @@ std::vector<node> induceSubgraph(std::vector<node> Sv) {
         SvLabel.push_back(v.label);
     }
     std::vector<node> inducedSubgraph; inducedSubgraph.reserve(size);
-    int relabel = 0;
     for (node v : Sv) {
         node vertexCopy = v;
-        //vertexCopy.label = relabel;
         vertexCopy.neighbours = sortedIntersection(SvLabel, vertexCopy.neighbours);
         vertexCopy.outNeighbours = sortedIntersection(SvLabel, vertexCopy.outNeighbours);
+        vertexCopy.colourOutneighbours = sortedIntersection(SvLabel, vertexCopy.colourOutneighbours);
         inducedSubgraph.push_back(vertexCopy);
-        relabel++;
     }
     return inducedSubgraph;
 }
@@ -67,6 +65,6 @@ float getEdgeDensity(std::vector<node> Sv) {
     return (degsum/2)/(choose(Sv.size(), 2));
 }
 
-bool checkClique(std::vector<node> C) {
+int checkClique(std::vector<node> C) {
     return getEdgeDensity(C) == 1;
 }
