@@ -27,4 +27,5 @@ float getEdgeDensity(std::vector<node> Sv);
 
 int checkClique(std::vector<node> C);
 
+
 #endif

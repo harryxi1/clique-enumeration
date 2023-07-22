@@ -8,48 +8,46 @@
 #include "utils.h"
 #include "graphutils.h"
 #include "pivoter.h"
+#include "suffix.h"
 
 using namespace std;
 
 random_device rd;
 mt19937 gen(rd());
 
-#define FILENAME "data/email_EU_edges.csv"
-#define n 1005
-#define m 25571
+#define FILENAME "data/web_Stanford_edges.csv"
+#define n 281903
+#define m 2312497
 
-vector<vector<int>> getData(vector<node> &vertices){
-    int count = 0;
+void getData(vector<node> &vertices){
 
     string filename = FILENAME;
     string line;
 
     ifstream data;
     data.open(filename);
-    vector<vector<int>> adjacencyMatrix(n, vector<int>(n, 0));
 
-    while (getline(data, line) && (count < m + 1)) {
+    while (getline(data, line)) {
         istringstream iss(line);
         string token;
-
+        int counter = 0;
         getline(iss, token, ',');
         int u = atoi(token.c_str());
 
         getline(iss, token, ',');
         int v = atoi(token.c_str());
-
+        counter++;
+        if (counter % 10000 == 0) {
+            cout << counter << endl;
+        }
         if (u != v) {
             vertices[u].deg++;
             vertices[u].neighbours.push_back(v);
 
             vertices[v].deg++;
             vertices[v].neighbours.push_back(u);
-
-            adjacencyMatrix[u][v] = 1;
-            adjacencyMatrix[v][u] = 1;
         }
     }
-    return adjacencyMatrix;
 }
 
 int greedyColouring(vector<node> &vertices, vector<int> degOrdering) {
@@ -95,8 +93,8 @@ void setDAGNeighbourhoods(vector<node> &vertices, vector<int> ordering) {
         sort(vertices[v].outNeighbours.begin(), vertices[v].outNeighbours.end());
 
         // remove potential duplicates
-        vertices[v].neighbours.erase(unique(vertices[v].neighbours.begin(), vertices[v].neighbours.end() ), vertices[v].neighbours.end());
-        vertices[v].outNeighbours.erase(unique(vertices[v].outNeighbours.begin(), vertices[v].outNeighbours.end() ), vertices[v].outNeighbours.end());
+        //vertices[v].neighbours.erase(unique(vertices[v].neighbours.begin(), vertices[v].neighbours.end() ), vertices[v].neighbours.end());
+        //vertices[v].outNeighbours.erase(unique(vertices[v].outNeighbours.begin(), vertices[v].outNeighbours.end() ), vertices[v].outNeighbours.end());
     }
 }
 
@@ -291,15 +289,6 @@ float estimateClique(vector<node> G, vector<int> S, int k, int t, int r) {
     return (successTimes/(t-adj)) * cntKCol;
 }
 
-int checkSuffix(vector<node> vertices, vector<int> ordering) {
-    vector<node> suffix;
-    for (int i = ordering.size()-1; i <= 0; i--) {
-        suffix.push_back(vertices[i]);
-        if (!checkClique(suffix)) {break;}
-    }
-    return suffix.size();
-}
-
 int cliqueCounter(vector<vector<int>> partition, vector<node> vertices, int k, int t, int r) {
     int nCliques = 0;
     for (auto v : partition[0]) {
@@ -311,7 +300,7 @@ int cliqueCounter(vector<vector<int>> partition, vector<node> vertices, int k, i
             nCliques = nCliques + pivoter(induceSubgraph(vertexSubset), k-1, true);
         }
     }
-    nCliques = nCliques + estimateClique(vertices, partition[1], k, 10000, r);
+    nCliques = nCliques + estimateClique(vertices, partition[1], k, t, r);
 
     // code for exact counting of dense partition (gives total exact count)
     // for (auto v : partition[1]) {
@@ -328,8 +317,8 @@ int cliqueCounter(vector<vector<int>> partition, vector<node> vertices, int k, i
 }
 
 int main() {
-    int k = 3;
-    cout << "Initialised k = " << k << endl;
+    //int k = 3;
+    //cout << "Initialised k = " << k << endl;
 
     vector<node> vertices = vector<node>();
     for (int v = 0; v < n; v++) {
@@ -339,14 +328,16 @@ int main() {
     }
 
     auto t1 = chrono::high_resolution_clock::now();
-    vector<vector<int>> adjacencyMatrix = getData(vertices);
+    getData(vertices);
+    cout << "got data" << endl;
     vector<int> ordering = getDegeneracyOrder(vertices);
-    setDAGNeighbourhoods(vertices, ordering);
-    vector<vector<int>> partition = partitionVertices(k, vertices);
+    cout << "got order" << endl;
+    //setDAGNeighbourhoods(vertices, ordering);
+    //vector<vector<int>> partition = partitionVertices(k, vertices);
     int r = greedyColouring(vertices, ordering);
     cout << r << "-Coloured \n";
-    vector<int> colourOrdering = getColourOrder(vertices);
-    setColourDAGNeighbourhoods(vertices, colourOrdering);
+    //vector<int> colourOrdering = getColourOrder(vertices);
+    //setColourDAGNeighbourhoods(vertices, colourOrdering);
     auto t2 = chrono::high_resolution_clock::now();
     cout << "Preprocessing Done in (" << chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms)" <<endl;
 
@@ -357,6 +348,6 @@ int main() {
     //DPPathSampling(vertices, k);
 
     //cout << "Exact " << k << "-clique count: " << pivoter(vertices, k, false) << "\n";
-
-    cout << cliqueCounter(partition, vertices, k, 10, r) << "\n";
+    //cout << cliqueCounter(partition, vertices, k, 10000, r) << "\n";
+    testSuffix(vertices, ordering);
 }

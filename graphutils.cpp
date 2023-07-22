@@ -1,5 +1,4 @@
 #include "graphutils.h"
-#include "utils.h"
 
 std::vector<int> getDegeneracyOrder(std::vector<node> vertices) {
     std::vector<int> L = std::vector<int>();
