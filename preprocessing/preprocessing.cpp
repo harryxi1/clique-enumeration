@@ -59,7 +59,7 @@ vector<int> degeneracyOrdering(vector<node> G, int maxDegree) {
     vector<int> d (n, 0); // dv 
 
     vector<int> L; L.reserve(n);
-    vector<vector<int>> D (maxDegree);
+    vector<vector<int>> D (maxDegree+1);
 
     for (node v : G) {
         D[v.deg].push_back(v.label); 
