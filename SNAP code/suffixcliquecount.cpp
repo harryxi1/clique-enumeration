@@ -105,22 +105,35 @@ degeneracyObject computeDegeneracyOrder(const PUNGraph G) {
     return output;
 }
 
-TIntV getOutNeighbourhoodID(
-    emhash6::HashMap<int, int>& degIndexMap, const TUNGraph::TNodeI NI) {
-    TIntV outNeighbourhood; 
-    for (int i = 0; i < NI.GetDeg(); ++i) {
-        if (degIndexMap[(NI.GetId())] < degIndexMap[(NI.GetNbrNId(i))]) {
-            outNeighbourhood + NI.GetNbrNId(i);
-        }
-    }
-    return outNeighbourhood;
-}
-
 bool checkInClique(int nodeID, vector<TUNGraph::TNodeI>& currClique) {
     for (int i = currClique.size() - 1; i >= 0; --i) {
         if (!currClique[i].IsNbrNId(nodeID)) {return 0;}
     }
     return 1;
+}
+
+PUNGraph degeneracyInduceSubgraph(
+    const TUNGraph::TNodeI& NI, const PUNGraph G, degeneracyObject& degObj) {
+    PUNGraph sGpt = TUNGraph::New();
+    TUNGraph& sG = *sGpt;
+
+    emhash7::HashSet<int> NIdSet;
+    for (int i = 0; i < NI.GetDeg(); ++i) {
+        if (degObj.degIndexMap[(NI.GetId())] < degObj.degIndexMap[(NI.GetNbrNId(i))]) {
+            sG.AddNodeUnchecked(NI.GetNbrNId(i));
+            NIdSet.insert(NI.GetNbrNId(i));
+        }
+    }
+
+    for (auto it = NIdSet.begin(); it != NIdSet.end(); it++) {
+        const TUNGraph::TNodeI NI = G->GetNI(*it);
+        for (int edge = 0; edge < NI.GetOutDeg(); ++edge) {
+            if (NIdSet.contains(NI.GetOutNId(edge))) {
+                sG.AddEdge(*it, NI.GetOutNId(edge));
+            }
+        }
+    }
+    return sGpt;
 }
 
 float countCliqueSuffix(const PUNGraph G, const int k, const float mu) {
@@ -133,7 +146,7 @@ float countCliqueSuffix(const PUNGraph G, const int k, const float mu) {
 
     vector<TUNGraph::TNodeI> clique;
     for (TUNGraph::TNodeI NI = G->BegNI(); NI < G->EndNI(); NI++) {
-        const PUNGraph sG = TSnap::GetSubGraph(G, getOutNeighbourhoodID(degObj.degIndexMap, NI));
+        const PUNGraph sG = degeneracyInduceSubgraph(NI, G, degObj);
         if (!sG->Empty()) {
             // handshaking lemma to get average degree
             int misses = 0;
